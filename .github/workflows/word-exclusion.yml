@@ -29,7 +29,6 @@ jobs:
           echo "::set-output name=directories::$directories"
 
       - name: Run Word Search script
-        needs: GetDirectories
         run: |
           $WordList = @("private", "pets", "tracker") # Add the words you want to find here
           $Matches = @()
