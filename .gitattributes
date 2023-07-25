@@ -281,3 +281,5 @@ tests/subsys/logging/log_timestamp/testcase.yaml merge=ours
 tests/subsys/portability/cmsis_rtos_v2/testcase.yaml merge=ours
 tests/subsys/rtio/rtio_api/testcase.yaml merge=ours
 west.yml merge=ours
+private
+pet
