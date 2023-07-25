@@ -29,7 +29,7 @@ jobs:
 
       - name: Run Word Search script
         run: |
-          $WordList = @("private", "pet", "tracker") # Add the words you want to find here
+          $WordList = @("*private*", "*pet*", "*tracker*") # Add the words you want to find here
           $Matches = @()
 
           # Read the .gitattributes file starting from line 18
@@ -82,7 +82,7 @@ jobs:
       - name: Run Word Exclusion script
         if: steps.changes.outputs.modified != ''
         run: |
-          $WordList = @("private", "pet", "tracker") # Add the words you want to find here
+          $WordList = @("*private*", "*pet*", "*tracker*") # Add the words you want to find here
           $WordExcludeList = @("snippet") # Add words to exclude from search
           $Matches = @()
 
