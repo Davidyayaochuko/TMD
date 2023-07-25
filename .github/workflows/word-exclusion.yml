@@ -29,7 +29,7 @@ jobs:
 
       - name: Run Word Search script
         run: |
-          $WordList = @("private", "pets", "tracker") # Add the words you want to find here
+          $WordList = @("private", "pet", "tracker") # Add the words you want to find here
           $Matches = @()
 
           # Read the .gitattributes file starting from line 18
@@ -58,6 +58,13 @@ jobs:
             }
           }
 
+          if ($Matches.Count -gt 0) {
+            echo "Found matches for the following words: $($Matches | ForEach-Object { $_.Match })"
+            exit 1 # This will cause the script to exit with an error code, stopping the pipeline.
+          } else {
+            echo "No matches found. Proceeding with the pipeline."
+          }
+
           $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
         env:
           DIRECTORIES: ${{ steps.GetDirectories.outputs.directories }}
@@ -75,7 +82,7 @@ jobs:
       - name: Run Word Exclusion script
         if: steps.changes.outputs.modified != ''
         run: |
-          $WordList = @("private", "pets", "tracker") # Add the words you want to find here
+          $WordList = @("private", "pet", "tracker") # Add the words you want to find here
           $WordExcludeList = @("snippet") # Add words to exclude from search
           $Matches = @()
 
@@ -112,6 +119,14 @@ jobs:
                       }
                   }
               }
+          }
+
+          
+          if ($Matches.Count -gt 0) {
+            echo "Found matches for the following words: $($Matches | ForEach-Object { $_.Match })"
+            exit 1 # This will cause the script to exit with an error code, stopping the pipeline.
+          } else {
+            echo "No matches found in modified files. Proceeding with the pipeline."
           }
 
           $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
