@@ -78,7 +78,7 @@ jobs:
               $FileName = $_
               foreach ($Pattern in $Patterns) {
                   if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
-                      $Matches += New-Object PSObject -Property @{+
+                      $Matches += New-Object PSObject -Property @{
                           Type = "file"
                           Match = $Pattern
                           Name = $FileName
