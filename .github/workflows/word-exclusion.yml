@@ -94,7 +94,7 @@ jobs:
                   $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
                   $Name = $_
                   foreach ($Pattern in $Patterns) {
-                      if ($Name -like "*$Pattern*") {
+                      if ($Name -match "*$Pattern*") {
                           $Matches += New-Object PSObject -Property @{
                               Type = $Type
                               Match = $Pattern
