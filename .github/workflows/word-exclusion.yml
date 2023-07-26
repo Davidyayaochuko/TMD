@@ -25,11 +25,7 @@ jobs:
       - name: Get file list from .gitattributes in main branch
         run: |
           git show main:.gitattributes > gitattributes_temp.txt
-          $FileList = Get-Content -Path gitattributes_temp.txt |
-                      Select-Object -Skip 17 |
-                      Select-String -Pattern '(^/.*)(?<!merge=ours)' |
-                      ForEach-Object { $_.Matches.Groups[1].Value }
-          $FileList | Out-File -Encoding utf8 file_list.txt
+          pwsh -c "$FileList = Get-Content -Path gitattributes_temp.txt | Select-Object -Skip 17 | Select-String -Pattern '(^/.*)(?<!merge=ours)' | ForEach-Object { $_.Matches.Groups[1].Value }; $FileList | Out-File -Encoding utf8 file_list.txt"
 
       - name: Run Word Search script
         run: |
