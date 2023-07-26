@@ -94,7 +94,6 @@ jobs:
                 $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
                 $Name = $_
                 foreach ($Pattern in $Patterns) {
-                  try {
                       if ($Name -match "*$Pattern*") {
                           $Matches += New-Object PSObject -Property @{
                               Type = $Type
@@ -103,7 +102,6 @@ jobs:
                           }
                       }
                   }
-                }
            }
 
           # Find matches in file contents for files to check from .gitattributes
