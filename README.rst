@@ -9,7 +9,8 @@
        </picture>
      </p>
    </a>
-   
+   Private
+pets
    <a
    href="https://github.com/tmobile/DevEdge-IoTDevKit-ZephyrRTOS/actions/workflows/tmo-nightly-upstream-mirror.yml">
    <img
