@@ -104,7 +104,13 @@ jobs:
                           Name = $Name
                       }
                   }
+              }
+          }
 
+          # Find matches in file contents for files to check from .gitattributes
+          $FileList | ForEach-Object {
+              $FileName = $_
+              foreach ($Pattern in $Patterns) {
                   if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
                       $Matches += New-Object PSObject -Property @{
                           Type = "file"
@@ -112,7 +118,6 @@ jobs:
                           Name = $FileName
                       }
                   }
-              }
               }
           }
           
