@@ -22,54 +22,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y powershell
 
-      - name: Get directory paths from .gitattributes
-        run: |
-          directories=$(tail -n +18 .gitattributes | awk '{print $1}' | grep -v -E '^\s*#|merge=ours')
-          echo "::set-output name=directories::$directories"
-
-      - name: Run Word Search script
-        run: |
-          $WordList = @("*private*", "*pet*", "*tracker*") # Add the words you want to find here
-          $Matches = @()
-
-          # Read the .gitattributes file starting from line 18
-          $GitAttributes = Get-Content -Path .gitattributes | Select-Object -Skip 17
-
-          # Extract directories and files from .gitattributes using regex
-          $Directories = $GitAttributes -match '^(\S+\/?)\s+(-?)(?!\s*#)'
-
-          foreach ($Directory in $Directories) {
-            $Directory = $Directory.Trim()
-
-            if (Test-Path $Directory) {
-              Get-ChildItem -Path $Directory -Recurse -Include "*" -File | ForEach-Object {
-                $FileName = $_.FullName
-
-                foreach ($Word in $WordList) {
-                  if (Select-String -Path $FileName -Pattern $Word -Quiet) {
-                    $Matches += New-Object PSObject -Property @{
-                      Directory = $Directory
-                      Match = $Word
-                      File = $FileName
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-          if ($Matches.Count -gt 0) {
-            echo "Found matches for the following words: $($Matches | ForEach-Object { $_.Match })"
-            exit 1 # This will cause the script to exit with an error code, stopping the pipeline.
-          } else {
-            echo "No matches found. Proceeding with the pipeline."
-          }
-
-          $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
-        env:
-          DIRECTORIES: ${{ steps.GetDirectories.outputs.directories }}
-        shell: pwsh
-
       - name: Get modified files and folders
         id: changes
         run: |
@@ -92,40 +44,28 @@ jobs:
               $Type = if ($_.PSIsContainer) { "dir" } else { "file" }
               $Name = $_.FullName
 
-              foreach ($Pattern in $WordList) {
-                  if ($WordExcludeList -notcontains $Pattern) {
-                      if ($Name -like "*$Pattern*") {
-                          $Matches += New-Object PSObject -Property @{
-                              Type = $Type
-                              Match = $Pattern
-                              Name = $Name
+              # Check if the file is linguist-vendored (text-based)
+              $isVendored = git check-attr linguist-vendored -- $Name | Select-String 'unset'
+              if ($isVendored) {
+                  foreach ($Pattern in $WordList) {
+                      if ($WordExcludeList -notcontains $Pattern) {
+                          if ($Name -like "*$Pattern*") {
+                              $Matches += New-Object PSObject -Property @{
+                                  Type = $Type
+                                  Match = $Pattern
+                                  Name = $Name
+                              }
                           }
                       }
                   }
               }
           }
 
-          Get-ChildItem -Path $ModifiedItems -Recurse -File | ForEach-Object {
-              $FileName = $_.FullName
-
-              foreach ($Pattern in $WordList) {
-                  if ($WordExcludeList -notcontains $Pattern) {
-                      if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
-                          $Matches += New-Object PSObject -Property @{
-                              Type = "file"
-                              Match = $Pattern
-                              Name = $FileName
-                          }
-                      }
-                  }
-              }
-          }
-          
           if ($Matches.Count -gt 0) {
-            echo "Found matches for the following words: $($Matches | ForEach-Object { $_.Match })"
-            exit 1 # This will cause the script to exit with an error code, stopping the pipeline.
+              echo "Found matches for the following words: $($Matches | ForEach-Object { $_.Match })"
+              exit 1 # This will cause the script to exit with an error code, stopping the pipeline.
           } else {
-            echo "No matches found in modified files. Proceeding with the pipeline."
+              echo "No matches found in modified files. Proceeding with the pipeline."
           }
 
           $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
