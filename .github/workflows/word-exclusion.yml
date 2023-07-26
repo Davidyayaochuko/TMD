@@ -73,9 +73,9 @@ jobs:
       - name: Get modified files and folders
         id: changes
         run: |
-          # Fetch the commit hash of the latest commit on the tmo-main branch
-          commit_hash=$(git rev-parse origin/tmo-main)
-          # Get the list of modified files and folders between the current branch and tmo-main branch
+          # Fetch the commit hash of the latest commit on the main branch
+          commit_hash=$(git rev-parse origin/main)
+          # Get the list of modified files and folders between the current branch and main branch
           modified_files_folders=$(git diff --name-only $commit_hash HEAD)
           echo "::set-output name=modified::$modified_files_folders"
 
