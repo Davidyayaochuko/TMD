@@ -109,6 +109,9 @@ jobs:
 
           # Find matches in file contents for files to check from .gitattributes
           $NotFoundPaths = @()
+          $FileListPath = Join-Path $env:GITHUB_WORKSPACE "file_list.txt"
+          $FileList = Get-Content $FileListPath
+
           $FileList | ForEach-Object {
             $FileName = $_.Trim()
               $FileName = $_
