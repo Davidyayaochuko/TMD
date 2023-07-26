@@ -40,7 +40,7 @@ jobs:
             echo "No files were extracted from .gitattributes. Check the pattern or file content."
             exit 1
           }
-          $FileList | Out-File -Encoding utf8 file_list.txt
+          $FileList | Out-File -Encoding ASCII file_list.txt
         shell: pwsh
 
       - name: Run Word Exclusion script
