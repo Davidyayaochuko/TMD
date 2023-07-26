@@ -91,10 +91,11 @@ jobs:
           $NotFoundPaths = @()
           Write-Output "File List: $FileList"
           $FileList | ForEach-Object {
-                $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
-                $Name = $_
-                foreach ($Pattern in $Patterns) {
-                      if ($Name -match "*$Pattern*") {
+              try {
+                  $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
+                  $Name = $_
+                  foreach ($Pattern in $Patterns) {
+                      if ($Name -like "*$Pattern*") {
                           $Matches += New-Object PSObject -Property @{
                               Type = $Type
                               Match = $Pattern
@@ -102,7 +103,12 @@ jobs:
                           }
                       }
                   }
-           }
+              )
+              catch {
+                $NotFoundPaths += $Name
+              }
+          }
+
 
           # Find matches in file contents for files to check from .gitattributes
           $FileList | ForEach-Object {
