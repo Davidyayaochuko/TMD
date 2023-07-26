@@ -22,10 +22,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y powershell
 
-      - name: Get file list from .gitattributes in main branch
+      - name: Get .gitattributes content from main branch
+        run: git show main:.gitattributes > gitattributes_temp.txt
+
+      - name: Extract file list from .gitattributes
         run: |
-          git show main:.gitattributes > gitattributes_temp.txt
-          pwsh -c "$FileList = Get-Content -Path gitattributes_temp.txt | Select-Object -Skip 17 | Select-String -Pattern '(^/.*)(?<!merge=ours)' | ForEach-Object { $_.Matches.Groups[1].Value }; $FileList | Out-File -Encoding utf8 file_list.txt"
+          $FileList = Get-Content -Path gitattributes_temp.txt |
+                      Select-Object -Skip 17 |
+                      Select-String -Pattern '(^/.*)(?<!merge=ours)' |
+                      ForEach-Object { $_.Matches.Groups[1].Value }
+          $FileList | Out-File -Encoding utf8 file_list.txt
+        shell: pwsh
 
       - name: Run Word Search script
         run: |
