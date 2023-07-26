@@ -1,3 +1,27 @@
+# Specify the files you want to include in word exclusion and set them as text.
+# You can add more file types/extensions here as needed.
+*.txt linguist-vendored
+*.md linguist-vendored
+*.json linguist-vendored
+*.html linguist-vendored
+*.yml linguist-vendored
+# Add more file extensions if needed
+
+# Add any additional file types/extensions you want to include in word exclusion.
+# For example, if you have Python files (*.py) you want to include, add them here.
+*.py linguist-vendored
+
+# Specify the binary files that should not be included in word exclusion.
+# You can add more file types/extensions here as needed.
+*.png binary
+*.jpg binary
+# Add more file extensions if needed
+
+# Add any additional binary file types/extensions you want to exclude from word exclusion.
+# For example, if you have binary files (*.exe) you want to exclude, add them here.
+*.exe binary
+
+
 # used to remove files from deployment using `git archive`
 # git files
 .gitattributes export-ignore
