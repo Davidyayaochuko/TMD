@@ -3,10 +3,10 @@ name: Word Exclusion
 on:
   push:
     branches:
-      - 'tmo-main'
+      - 'main'
   pull_request_target:
     branches:
-      - 'tmo-main'
+      - 'main'
 
 jobs:
   word_exclusion:
