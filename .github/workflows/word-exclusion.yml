@@ -61,6 +61,7 @@ jobs:
           }
 
           $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
+        shell: pwsh
 
       - name: Get modified files and folders
         id: changes
@@ -121,6 +122,9 @@ jobs:
           }
 
           $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
+        env:
+          MODIFIED_ITEMS: ${{ steps.changes.outputs.modified }}
+        shell: pwsh
 
       - name: Upload JSON output
         uses: actions/upload-artifact@v2
