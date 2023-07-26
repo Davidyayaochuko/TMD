@@ -22,6 +22,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y powershell
 
+      - name: Ensure checkout is complete
+        run: git checkout ${{ github.ref }}
+        shell: bash
+
       - name: Run Word Search script
         run: |
           $WordList = @("*private*", "*pet*", "*tracker*") # Add the words you want to find here
