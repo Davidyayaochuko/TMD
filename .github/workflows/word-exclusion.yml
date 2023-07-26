@@ -91,9 +91,11 @@ jobs:
           $NotFoundPaths = @()
           Write-Output "File List: $FileList"
           $FileList | ForEach-Object {
-              try {
-                  $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
-                  $Name = $_
+              $FileName = $_.Trim()
+              if ($FileName -ne "") {
+                  $Type = if (Test-Path $FileName -PathType Container) { "dir" } else { "filename" }
+                  $Name = $FileName
+
                   foreach ($Pattern in $Patterns) {
                       if ($Name -like "*$Pattern*") {
                           $Matches += New-Object PSObject -Property @{
@@ -103,18 +105,8 @@ jobs:
                           }
                       }
                   }
-              }
-              catch {
-                $NotFoundPaths += $Name
-              }
-          }
 
-
-          # Find matches in file contents for files to check from .gitattributes
-          $FileList | ForEach-Object {
-              $FileName = $_
-              foreach ($Pattern in $Patterns) {
-                  if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
+                  if (Select-String -Path $FileName -Pattern $Patterns -Quiet) {
                       $Matches += New-Object PSObject -Property @{
                           Type = "file"
                           Match = $Pattern
@@ -123,6 +115,7 @@ jobs:
                   }
               }
           }
+
           # Output matches
           $Matches
           # Convert the matches to JSON format
