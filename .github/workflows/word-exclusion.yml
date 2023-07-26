@@ -3,10 +3,10 @@ name: Word Exclusion
 on:
   push:
     branches:
-      - 'main'
+      - 'testing'
   pull_request_target:
     branches:
-      - 'main'
+      - 'testing'
 
 jobs:
   word_exclusion:
@@ -21,120 +21,120 @@ jobs:
           sudo dpkg -i packages-microsoft-prod.deb
           sudo apt-get update
           sudo apt-get install -y powershell
-
-      - name: Get directory paths from .gitattributes
+      
+      - name: Get file list from .gitattributes in main branch
+        id: get_file_list
         run: |
-          directories=$(tail -n +18 .gitattributes | awk '{print $1}' | grep -v -E '^\s*#|merge=ours')
-          echo "::set-output name=directories::$directories"
+          git show main:.gitattributes > gitattributes_temp.txt
+          echo "Content of gitattributes_temp.txt:"
+          Get-Content -Path gitattributes_temp.txt
+          $FileList = Get-Content -Path gitattributes_temp.txt |
+                      Select-Object -Skip 17 |
+                      Select-String -Pattern '^(.*?)(?=\smerge=ours|$)' |
+                      ForEach-Object { $_.Matches.Groups[1].Value }
 
-      - name: Run Word Search script
-        run: |
-          $WordList = @("*private*", "*pet*", "*tracker*") # Add the words you want to find here
-          $Matches = @()
+          echo "Content of the extracted file list:"
+          $FileList
 
-          # Read the .gitattributes file starting from line 18
-          $GitAttributes = Get-Content -Path .gitattributes | Select-Object -Skip 17
-
-          # Extract directories and files from .gitattributes using regex
-          $Directories = $GitAttributes -match '^(\S+\/?)\s+(-?)(?!\s*#)'
-
-          foreach ($Directory in $Directories) {
-            $Directory = $Directory.Trim()
-
-            if (Test-Path $Directory) {
-              Get-ChildItem -Path $Directory -Recurse -Include "*" -File | ForEach-Object {
-                $FileName = $_.FullName
-
-                foreach ($Word in $WordList) {
-                  if (Select-String -Path $FileName -Pattern $Word -Quiet) {
-                    $Matches += New-Object PSObject -Property @{
-                      Directory = $Directory
-                      Match = $Word
-                      File = $FileName
-                    }
-                  }
-                }
-              }
-            }
+          if ($FileList.Count -eq 0) {
+            echo "No files were extracted from .gitattributes. Check the pattern or file content."
+            exit 1
           }
-
-          if ($Matches.Count -gt 0) {
-            echo "Found matches for the following words: $($Matches | ForEach-Object { $_.Match })"
-            exit 1 # This will cause the script to exit with an error code, stopping the pipeline.
-          } else {
-            echo "No matches found. Proceeding with the pipeline."
-          }
-
-          $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
-        env:
-          DIRECTORIES: ${{ steps.GetDirectories.outputs.directories }}
+          $FileList | Out-File -Encoding utf8 file_list.txt
         shell: pwsh
 
-      - name: Get modified files and folders
-        id: changes
+       - name: Run Word Exclusion script
         run: |
-          # Fetch the commit hash of the latest commit on the main branch
-          commit_hash=$(git rev-parse origin/main)
-          # Get the list of modified files and folders between the current branch and main branch
-          modified_files_folders=$(git diff --name-only $commit_hash HEAD)
-          echo "::set-output name=modified::$modified_files_folders"
-
-      - name: Run Word Exclusion script
-        if: steps.changes.outputs.modified != ''
-        run: |
-          $WordList = @("*private*", "*pet*", "*tracker*") # Add the words you want to find here
-          $WordExcludeList = @("snippet") # Add words to exclude from search
+          $Patterns = @("private", "pets*", "tracker*")
+          $PathToCheck = $env:GITHUB_WORKSPACE
           $Matches = @()
-
-          $ModifiedItems = $env:MODIFIED_ITEMS -split "`n"
-
-          Get-ChildItem -Path $ModifiedItems -Recurse | ForEach-Object {
-              $Type = if ($_.PSIsContainer) { "dir" } else { "file" }
-              $Name = $_.FullName
-
-              foreach ($Pattern in $WordList) {
-                  if ($WordExcludeList -notcontains $Pattern) {
-                      if ($Name -like "*$Pattern*") {
-                          $Matches += New-Object PSObject -Property @{
-                              Type = $Type
-                              Match = $Pattern
-                              Name = $Name
-                          }
+          # Read the list of changed files (for PR) or the list of all files (for push)
+          if ($env:GITHUB_BASE_REF) {
+            # If GITHUB_BASE_REF exists, this is a pull request
+            git diff --name-only $env:GITHUB_BASE_REF...$env:GITHUB_HEAD_REF > changed_files.txt
+          }
+          else {
+            # Otherwise, this is a push event
+            git ls-tree --name-only HEAD > changed_files.txt
+          }
+          # Read the list of files to check from .gitattributes
+          $FileList = Get-Content file_list.txt
+          # Find matches in directory names and file names for changed files
+          Get-Content changed_files.txt | ForEach-Object {
+              $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
+              $Name = $_
+              foreach ($Pattern in $Patterns) {
+                  if ($Name -like "*$Pattern*") {
+                      $Matches += New-Object PSObject -Property @{
+                          Type = $Type
+                          Match = $Pattern
+                          Name = $Name
                       }
                   }
               }
           }
-
-          Get-ChildItem -Path $ModifiedItems -Recurse -File | ForEach-Object {
-              $FileName = $_.FullName
-
-              foreach ($Pattern in $WordList) {
-                  if ($WordExcludeList -notcontains $Pattern) {
-                      if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
-                          $Matches += New-Object PSObject -Property @{
-                              Type = "file"
-                              Match = $Pattern
-                              Name = $FileName
-                          }
+          # Find matches in file contents for changed files
+          Get-Content changed_files.txt | ForEach-Object {
+              $FileName = $_
+              foreach ($Pattern in $Patterns) {
+                  if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
+                      $Matches += New-Object PSObject -Property @{+
+                          Type = "file"
+                          Match = $Pattern
+                          Name = $FileName
                       }
                   }
               }
           }
+          # Find matches in directory names and file names for files to check from .gitattributes
+          $FileList | ForEach-Object {
+              $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
+              $Name = $_
+              foreach ($Pattern in $Patterns) {
+                  if ($Name -like "*$Pattern*") {
+                      $Matches += New-Object PSObject -Property @{
+                          Type = $Type
+                          Match = $Pattern
+                          Name = $Name
+                      }
+                  }
+              }
+          }
+          # Find matches in file contents for files to check from .gitattributes
+          $FileList | ForEach-Object {
+              $FileName = $_
+              foreach ($Pattern in $Patterns) {
+                  if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
+                      $Matches += New-Object PSObject -Property @{
+                          Type = "file"
+                          Match = $Pattern
+                          Name = $FileName
+                      }
+                  }
+              }
+          }
+          # Output matches
+          $Matches
+          # Convert the matches to JSON format
+          $MatchesJson = $Matches | ConvertTo-Json -Depth 100
+          Write-Output $MatchesJson | Out-File matches.json
+
+          # Fail the pipeline if matches.json is not empty
+          if ((Get-Content -Path matches.json -Raw) -ne "") {
+            echo "Word exclusion matches found."
+            exit 1
+          }
+        shell: pwsh  # Use the PowerShell shell to execute the script
+
+      - name: Export .gitattributes file list as an artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: file_list
+          path: file_list.txt
           
-          if ($Matches.Count -gt 0) {
-            echo "Found matches for the following words: $($Matches | ForEach-Object { $_.Match })"
-            exit 1 # This will cause the script to exit with an error code, stopping the pipeline.
-          } else {
-            echo "No matches found in modified files. Proceeding with the pipeline."
-          }
-
-          $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
-        env:
-          MODIFIED_ITEMS: ${{ steps.changes.outputs.modified }}
-        shell: pwsh
-
       - name: Upload JSON output
         uses: actions/upload-artifact@v2
         with:
           name: matches
           path: matches.json
+
