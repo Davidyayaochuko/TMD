@@ -120,7 +120,6 @@ jobs:
                   }
               }
           }
-
           
           if ($Matches.Count -gt 0) {
             echo "Found matches for the following words: $($Matches | ForEach-Object { $_.Match })"
