@@ -22,18 +22,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y powershell
 
-      - name: Get .gitattributes content from main branch
-        run: git show main:.gitattributes > gitattributes_temp.txt
-
-      - name: Extract file list from .gitattributes
-        run: |
-          $FileList = Get-Content -Path gitattributes_temp.txt |
-                      Select-Object -Skip 17 |
-                      Select-String -Pattern '(^/.*)(?<!merge=ours)' |
-                      ForEach-Object { $_.Matches.Groups[1].Value }
-          $FileList | Out-File -Encoding utf8 file_list.txt
-        shell: pwsh
-
       - name: Run Word Search script
         run: |
           $WordList = @("*private*", "*pet*", "*tracker*") # Add the words you want to find here
@@ -73,9 +61,6 @@ jobs:
           }
 
           $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
-        env:
-          DIRECTORIES: ${{ steps.GetDirectories.outputs.directories }}
-        shell: pwsh
 
       - name: Get modified files and folders
         id: changes
@@ -136,9 +121,6 @@ jobs:
           }
 
           $Matches | ConvertTo-Json -Depth 100 | Out-File matches.json
-        env:
-          MODIFIED_ITEMS: ${{ steps.changes.outputs.modified }}
-        shell: pwsh
 
       - name: Upload JSON output
         uses: actions/upload-artifact@v2
