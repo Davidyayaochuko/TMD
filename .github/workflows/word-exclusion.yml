@@ -89,7 +89,8 @@ jobs:
 
           # Find matches in directory names and file names for files to check from .gitattributes
           $NotFoundPaths = @()
-              $FileList | ForEach-Object {
+          Write-Output "File List: $FileList"
+          $FileList | ForEach-Object {
                   $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
                   $Name = $_
                   foreach ($Pattern in $Patterns) {
@@ -101,7 +102,7 @@ jobs:
                           }
                       }
                   }
-              }
+          }
 
 
           # Find matches in file contents for files to check from .gitattributes
