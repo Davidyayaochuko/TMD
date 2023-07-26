@@ -21,8 +21,9 @@ jobs:
           sudo dpkg -i packages-microsoft-prod.deb
           sudo apt-get update
           sudo apt-get install -y powershell
-      
-      - name: Get file list from .gitattributes in main branch
+ 
+    
+      - name: Get file list from .gitattributes in tmo-main branch
         id: get_file_list
         run: |
           git show origin/testing:.gitattributes > gitattributes_temp.txt
@@ -40,14 +41,15 @@ jobs:
             echo "No files were extracted from .gitattributes. Check the pattern or file content."
             exit 1
           }
-          $FileList | Out-File -Encoding ASCII file_list.txt
+          $FileList | Out-File -Encoding utf8 file_list.txt
         shell: pwsh
 
       - name: Run Word Exclusion script
         run: |
-          $Patterns = @("private", "pets*", "tracker*")
+          $Patterns = @("^(private)$", "^(tracker)", "^(pets)")
           $PathToCheck = $env:GITHUB_WORKSPACE
           $Matches = @()
+
           # Read the list of changed files (for PR) or the list of all files (for push)
           if ($env:GITHUB_BASE_REF) {
             # If GITHUB_BASE_REF exists, this is a pull request
@@ -57,22 +59,26 @@ jobs:
             # Otherwise, this is a push event
             git ls-tree --name-only HEAD > changed_files.txt
           }
-          # Read the list of files to check from .gitattributes
+
+          # Read the list of files to check from file_list.txt
           $FileList = Get-Content file_list.txt
+
           # Find matches in directory names and file names for changed files
           Get-Content changed_files.txt | ForEach-Object {
               $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
               $Name = $_
               foreach ($Pattern in $Patterns) {
-                  if ($Name -like "*$Pattern*") {
+                  if ($Name -match $Pattern) {
                       $Matches += New-Object PSObject -Property @{
                           Type = $Type
                           Match = $Pattern
                           Name = $Name
                       }
+                      break  # Exit the loop once a match is found
                   }
               }
           }
+
           # Find matches in file contents for changed files
           Get-Content changed_files.txt | ForEach-Object {
               $FileName = $_
@@ -83,70 +89,75 @@ jobs:
                           Match = $Pattern
                           Name = $FileName
                       }
+                      break  # Exit the loop once a match is found
                   }
               }
           }
 
-          # Find matches in directory names and file names for files to check from .gitattributes
+          # Find matches in directory names and file names for files to check from file_list.txt
           $NotFoundPaths = @()
-          Write-Output "File List: $FileList"
           $FileList | ForEach-Object {
-          $FileName = $_.Trim()
-          if ($FileName -ne "") {
-              $Type = if (Test-Path $FileName -PathType Container) { "dir" } else { "filename" }
-              $Name = $FileName
+              $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
+              $Name = $_
               foreach ($Pattern in $Patterns) {
-                  if ($Name -like "*$Pattern*") {
-                      $Matches += New-Object PSObject -Property @{
-                          Type = $Type
-                          Match = $Pattern
-                          Name = $Name
+                  try {
+                      # Attempt to check if the path exists in the main branch
+                      if ($Name -match $Pattern) {
+                          $Matches += New-Object PSObject -Property @{
+                              Type = $Type
+                              Match = $Pattern
+                              Name = $Name
+                          }
+                          break  # Exit the loop once a match is found
                       }
                   }
+                  catch {
+                      # Add the path to the list of not found paths if it doesn't exist in the main branch
+                      $NotFoundPaths += $Name
+                      break  # Exit the loop once a match is found
+                  }
               }
           }
-          }
 
-          # Find matches in file contents for files to check from .gitattributes
-          $NotFoundPaths = @()
-          $FileListPath = Join-Path $env:GITHUB_WORKSPACE "file_list.txt"
-          $FileList = Get-Content $FileListPath
-
+          # Find matches in file contents for files to check from file_list.txt
           $FileList | ForEach-Object {
-            $FileName = $_.Trim()
               $FileName = $_
               foreach ($Pattern in $Patterns) {
-                  if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
-                      $Matches += New-Object PSObject -Property @{
-                          Type = "file"
-                          Match = $Pattern
-                          Name = $FileName
+                  try {
+                      # Attempt to check if the file exists in the main branch
+                      if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
+                          $Matches += New-Object PSObject -Property @{
+                              Type = "file"
+                              Match = $Pattern
+                              Name = $FileName
+                          }
+                          break  # Exit the loop once a match is found
                       }
+                  }
+                  catch {
+                      # Add the file path to the list of not found paths if it doesn't exist in the main branch
+                      $NotFoundPaths += $FileName
+                      break  # Exit the loop once a match is found
                   }
               }
           }
-          
-          # Output matches
-          $Matches
-          # Convert the matches to JSON format
-          $MatchesJson = $Matches | ConvertTo-Json -Depth 100
-          Write-Output $MatchesJson | Out-File matches.json
 
-          # Fail the pipeline if matches.json is not empty
-          if ((Get-Content -Path matches.json -Raw) -ne "") {
-            echo "Word exclusion matches found."
+          # Save matches to a variable
+          $MatchedItems = $Matches
+
+          # Output matches
+          $MatchedItems
+
+          # Output paths that were not found in the main branch
+          Write-Output "Paths not found in the main branch:"
+          $NotFoundPaths
+
+          # Fail the pipeline if matches were found
+          if ($MatchedItems.Count -gt 0) {
+            Write-Host "Found matches. Pipeline will fail."
+            $MatchedItems | ForEach-Object {
+              Write-Host $_
+            }
             exit 1
           }
         shell: pwsh  # Use the PowerShell shell to execute the script
-
-      - name: Export .gitattributes file list as an artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: file_list
-          path: file_list.txt
-          
-      - name: Upload JSON output
-        uses: actions/upload-artifact@v2
-        with:
-          name: matches
-          path: matches.json
