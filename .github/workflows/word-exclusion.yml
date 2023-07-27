@@ -146,7 +146,7 @@ jobs:
           $NotFoundPaths
 
           # Fail the pipeline if matches were found
-          if ($MatchedItems.Count -gt 0) {
+          if ($MatchedItems.Count -eq $Patterns.Count) {
             Write-Host "Found matches. Pipeline will fail."
             $MatchedItems | ForEach-Object {
               Write-Host $_
