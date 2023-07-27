@@ -94,6 +94,6 @@ Here's a quick summary of resources to help you find your way around:
 .. _Asking for Help Tips: https://docs.zephyrproject.org/latest/develop/getting_started/index.html#asking-for-help
 
 
-Private
-pet
+private
+private
 tracker
