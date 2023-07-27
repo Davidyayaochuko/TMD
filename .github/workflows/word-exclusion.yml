@@ -78,7 +78,7 @@ jobs:
           }
 
           # Find matches in file contents for changed files
-          Get-Content changed_files.txt | ForEach-Object {
+          $ChangedFiles | ForEach-Object {
               $FileName = $_
               foreach ($Pattern in $Patterns) {
                   if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
