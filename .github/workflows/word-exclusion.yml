@@ -71,7 +71,6 @@ jobs:
                           Type = $Type
                           Match = $Pattern
                           Name = $Name
-                          Line = $Match.Line
                       }
                   }
               }
@@ -128,7 +127,6 @@ jobs:
                           Type = "file"
                           Match = $Pattern
                           Name = $FileName
-                          Line = $Match.Line
                       }
                   }
                 }
