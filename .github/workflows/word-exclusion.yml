@@ -34,6 +34,7 @@ jobs:
                       Select-String -Pattern '^(.*?)(?=\smerge=ours|$)' |
                       ForEach-Object { $_.Matches.Groups[1].Value }
 
+
           echo "Content of the extracted file list:"
           $FileList
 
@@ -44,20 +45,27 @@ jobs:
           $FileList | Out-File -Encoding utf8 file_list.txt
         shell: pwsh
 
-      - name: Run Word Exclusion script
+      - name: Word Exclusion
         run: |
           $Patterns = @("^(private)$", "^(tracker)", "^(pets)")
           $PathToCheck = $env:GITHUB_WORKSPACE
           $Matches = @()
 
-          # Get the list of changed files (for PR) or the list of all files (for push) in the current directory
-          $ChangedFiles = Get-ChildItem -Path $PathToCheck | ForEach-Object { $_.FullName }
+          # Read the list of changed files (for PR) or the list of all files (for push)
+          if ($env:GITHUB_BASE_REF) {
+            # If GITHUB_BASE_REF exists, this is a pull request
+            git diff --name-only $env:GITHUB_BASE_REF...$env:GITHUB_HEAD_REF > changed_files.txt
+          }
+          else {
+            # Otherwise, this is a push event
+            git ls-tree --name-only HEAD > changed_files.txt
+          }
 
           # Read the list of files to check from file_list.txt
           $FileList = Get-Content file_list.txt
 
           # Find matches in directory names and file names for changed files
-          $ChangedFiles | ForEach-Object {
+          Get-Content changed_files.txt | ForEach-Object {
               $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
               $Name = $_
               foreach ($Pattern in $Patterns) {
@@ -73,7 +81,7 @@ jobs:
           }
 
           # Find matches in file contents for changed files
-          $ChangedFiles | ForEach-Object {
+          Get-Content changed_files.txt | ForEach-Object {
               $FileName = $_
               foreach ($Pattern in $Patterns) {
                   if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
@@ -94,7 +102,7 @@ jobs:
               $Name = $_
               foreach ($Pattern in $Patterns) {
                   try {
-                      # Attempt to check if the path exists in the current directory
+                      # Attempt to check if the path exists in this branch
                       if ($Name -match $Pattern) {
                           $Matches += New-Object PSObject -Property @{
                               Type = $Type
@@ -105,7 +113,7 @@ jobs:
                       }
                   }
                   catch {
-                      # Add the path to the list of not found paths if it doesn't exist in the current directory
+                      # Add the path to the list of not found paths if it doesn't exist in this branch
                       $NotFoundPaths += $Name
                       break  # Exit the loop once a match is found
                   }
@@ -117,7 +125,7 @@ jobs:
               $FileName = $_
               foreach ($Pattern in $Patterns) {
                   try {
-                      # Attempt to check if the file exists in the current directory
+                      # Attempt to check if the file exists in this branch
                       if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
                           $Matches += New-Object PSObject -Property @{
                               Type = "file"
@@ -128,29 +136,37 @@ jobs:
                       }
                   }
                   catch {
-                      # Add the file path to the list of not found paths if it doesn't exist in the current directory
+                      # Add the file path to the list of not found paths if it doesn't exist in this branch
                       $NotFoundPaths += $FileName
                       break  # Exit the loop once a match is found
                   }
               }
           }
 
-          # Save matches to a variable
-          $MatchedItems = $Matches
+          # Output gitattribute paths that were not found in this branch
+          echo "Paths from .gitattributes not found in this branch:"
+          foreach ($Path in $NotFoundPaths) {
+              echo $Path
+          }
 
           # Output matches
-          $MatchedItems
+          $Matches
 
-          # Output paths that were not found in the main branch
-          Write-Output "Paths not found in the main branch:"
-          $NotFoundPaths
-
-          # Fail the pipeline if matches were found
-          if ($MatchedItems.Count -gt 0) {
-            Write-Host "Found matches. Pipeline will fail."
-            $MatchedItems | ForEach-Object {
-              Write-Host $_
-            }
+          # Convert the matches to JSON format
+          $MatchesJson = $Matches | ConvertTo-Json -Depth 100
+          Write-Output $MatchesJson | Out-File matches.json
+          
+          # Fail the pipeline if matches.json is not empty
+          if ((Get-Content -Path matches.json -Raw) -ne "") {
+            echo "Word exclusion matches found."
             exit 1
           }
+
         shell: pwsh  # Use the PowerShell shell to execute the script
+
+      - name: Upload Matches Artifact
+        if: always()  # Ensure the step runs regardless of the pipeline status
+        uses: actions/upload-artifact@v2
+        with:
+          name: matches-artifact
+          path: matches.json
