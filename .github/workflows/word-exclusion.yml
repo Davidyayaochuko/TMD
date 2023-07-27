@@ -150,9 +150,9 @@ jobs:
           # Fail the pipeline if matches were found
           if ($MatchedItems.Count -gt 0) {
             Write-Host "Found matches. Pipeline will fail."
-            $MatchedItems | ForEach-Object {
-              Write-Host $_
-            }
+            # $MatchedItems | ForEach-Object {
+            #  Write-Host $_
+            #}
             exit 1
           }
         shell: pwsh  # Use the PowerShell shell to execute the script
