@@ -53,15 +53,9 @@ jobs:
           $PathToCheck = $env:GITHUB_WORKSPACE
           $Matches = @()
 
-          # Read the list of changed files (for PR) or the list of all files (for push)
-          if ($env:GITHUB_BASE_REF) {
-            # If GITHUB_BASE_REF exists, this is a pull request
-            git diff --name-only $env:GITHUB_BASE_REF...$env:GITHUB_HEAD_REF > changed_files.txt
-          }
-          else {
-            # Otherwise, this is a push event
-            git ls-tree --name-only HEAD > changed_files.txt
-          }
+          # Get the list of changed files (for PR) or the list of all files (for push) in the current directory
+          $ChangedFiles = Get-ChildItem -Path $PathToCheck | ForEach-Object { $_.FullName }
+
 
           # Read the list of files to check from file_list.txt
           $FileList = Get-Content file_list.txt
