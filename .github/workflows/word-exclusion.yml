@@ -117,6 +117,7 @@ jobs:
           $FileList | ForEach-Object {
               $FileName = $_
               foreach ($Pattern in $Patterns) {
+                try {
                   $MatchesInFile = Select-String -Path $FileName -Pattern $Pattern
                   foreach ($Match in $MatchesInFile) {
                       $Matches += New-Object PSObject -Property @{
@@ -126,6 +127,12 @@ jobs:
                           Line = $Match.Line
                       }
                   }
+                }
+                catch {
+                      # Add the file path to the list of not found paths if it doesn't exist in the current directory
+                      $NotFoundPaths += $FileName
+                      break  # Exit the loop once a match is found
+                  }     
               }
           }
 
