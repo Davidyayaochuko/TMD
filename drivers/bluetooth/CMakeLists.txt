@@ -6,6 +6,3 @@ zephyr_library_include_directories(${ZEPHYR_BASE}/subsys/bluetooth)
 add_subdirectory(hci)
 add_subdirectory(custom)
 
-
-pet
-private
