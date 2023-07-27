@@ -61,13 +61,14 @@ jobs:
               $Type = if (Test-Path $_ -PathType Container) { "dir" } else { "filename" }
               $Name = $_
               foreach ($Pattern in $Patterns) {
-                  if ($Name -match $Pattern) {
+                  $MatchesInFile = Select-String -Path $Name -Pattern $Pattern
+                  foreach ($Match in $MatchesInFile) {
                       $Matches += New-Object PSObject -Property @{
                           Type = $Type
                           Match = $Pattern
                           Name = $Name
+                          Line = $Match.Line
                       }
-                      break  # Exit the loop once a match is found
                   }
               }
           }
@@ -116,24 +117,18 @@ jobs:
           $FileList | ForEach-Object {
               $FileName = $_
               foreach ($Pattern in $Patterns) {
-                  try {
-                      # Attempt to check if the file exists in the current directory
-                      if (Select-String -Path $FileName -Pattern $Pattern -Quiet) {
-                          $Matches += New-Object PSObject -Property @{
-                              Type = "file"
-                              Match = $Pattern
-                              Name = $FileName
-                          }
-                          break  # Exit the loop once a match is found
+                  $MatchesInFile = Select-String -Path $FileName -Pattern $Pattern
+                  foreach ($Match in $MatchesInFile) {
+                      $Matches += New-Object PSObject -Property @{
+                          Type = "file"
+                          Match = $Pattern
+                          Name = $FileName
+                          Line = $Match.Line
                       }
-                  }
-                  catch {
-                      # Add the file path to the list of not found paths if it doesn't exist in the current directory
-                      $NotFoundPaths += $FileName
-                      break  # Exit the loop once a match is found
                   }
               }
           }
+
 
           # Save matches to a variable
           $MatchedItems = $Matches
@@ -146,7 +141,7 @@ jobs:
           $NotFoundPaths
 
           # Fail the pipeline if matches were found
-          if ($MatchedItems.Count -eq $Patterns.Count) {
+          if ($MatchedItems.Count -gt 0) {
             Write-Host "Found matches. Pipeline will fail."
             $MatchedItems | ForEach-Object {
               Write-Host $_
